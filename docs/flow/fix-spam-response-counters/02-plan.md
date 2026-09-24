@@ -14,7 +14,7 @@
 - [x] `/vacancies/`: сайдбар «За неделю: 7 откликов на 6 вакансий» без изменения логики `SidebarService` / `getWeekSummary`.
 - [x] `VacancyResponseRepository::getWeekCount` с `whereNot('STATUS', 'SPAM')`; вызов в `VacancyService` обновлён; метода `getWeekCountIncludingSpam` нет.
 - [x] Новые и обновлённые тесты зелёные: Integration (новый red→green), e2e детальной и сайдбара.
-- [ ] Реестр багов и документация обновлены (docs-keeper): §4 и матрица §3 — сайдбар 7 на 6, не 6; детальный счётчик закрыт.
+- [x] Реестр багов и документация обновлены (docs-keeper): §4 и матрица §3 — сайдбар 7 на 6, не 6; детальный счётчик закрыт.
 
 ## 3. Файлы
 
@@ -38,7 +38,7 @@
 - [x] **Шаг 4.** Обновить характеризующие e2e в `e2e/tests/Browser/VacanciesTest.php`:
   - `рассинхрон счётчиков откликов у senior-php (баг №2)` → ожидание `.lv-stats-week` = `2 за неделю` (общий «2 отклика» без изменений); название можно сменить на согласованность счётчиков без рассинхрона.
   - `сайдбар: направления, популярные и сводка со SPAM (баг №2)` → оставить assert `За неделю: 7 откликов на 6 вакансий`; переименовать (например, убрать «со SPAM»), чтобы не требовать ошибочные «6» из реестра.
-- [ ] **Коммит:** `test(vacancies): expect spam-free week counters in e2e`
+- [x] **Коммит:** `test(vacancies): expect spam-free week counters in e2e`
 
 ## 5. Проверка
 
@@ -99,6 +99,6 @@ WHERE CREATED >= NOW() - INTERVAL 7 DAY
 ## 8. Прогресс
 
 - Шаги 1–3 + коммит `ea3e3d2`: red Integration → `getWeekCount` + `whereNot SPAM` → Integration 4 passed.
-- Шаг 4: e2e сайдбар и детальная; assert общего счётчика уточнён до `.lv-stats > span:nth-child(2) b` (после фикса «2» встречалось дважды в `.lv-stats`).
-- Коммит 2 — в процессе.
-- docs-keeper: реестр / legacy — не трогали.
+- Шаг 4 + коммит `cf553f4`: e2e сайдбар «7 на 6», детальная «2 за неделю»; assert общего счётчика — `.lv-stats > span:nth-child(2) b` (после фикса «2» дважды в `.lv-stats`).
+- docs-keeper: реестр / legacy / refactoring_plan / project-context обновлены.
+- Готово к отчёту (гейт 3). Push/PR не делались.

@@ -31,7 +31,7 @@
 | № бага / аномалии | Зафиксированное поведение (из `vacancies.md` и тестов) | Как поведение сохраняется в рефакторинге | Слой реализации |
 |---|---|---|---|
 | **№1** (Сортировка `sort=views`) | Сортировка по просмотрам выполняется не в SQL, а в памяти PHP для 5 элементов текущей страницы по дате. `DevOps-инженер` (190 просмотров) оказывается на 2-й странице. | `VacancyService::listVacancies()` при `sort === 'views'` запрашивает страницу элементов у `VacancyRepository` с сортировкой по дате (`ACTIVE_FROM DESC, ID DESC`), а затем выполняет `usort` по просмотрам полученного среза. | `VacancyService` |
-| **№2** (Рассинхрон откликов) | На детальной странице общий счётчик откликов исключает `SPAM`, а недельный счётчик считает абсолютно все отклики (включая `SPAM`). В сайдбаре списка в сводке также суммируются недельные записи. | `VacancyResponseRepository` реализует два разных метода: `getValidCountByVacancyId()` (`STATUS <> 'SPAM'`) и `getWeekCountIncludingSpamByVacancyId()` (без фильтра по статусу). | `VacancyResponseRepository` |
+| **№2** (Рассинхрон откликов) | Ранее на детальной общий счётчик исключал `SPAM`, а недельный считал все отклики (включая `SPAM`). Сайдбар уже без SPAM через `getWeekSummary`. | **Исправлено:** `getValidCountByVacancyId()` и `getWeekCount()` оба с `STATUS <> 'SPAM'`; сайдбар — `getWeekSummary()` без SPAM (7 на 6). | `VacancyResponseRepository` |
 | **№3** (Подмешивание чужого раздела) | В похожих вакансиях, если в разделе вакансий < 3, недостающие добираются по совпадению `CITY_ID` из чужих разделов (для `support-l1` добирается `middle-php-developer`). | `VacancyRepository::getRelatedVacancies()` сохраняет двухэтапную логику: выборка по `SECTION_ID`, затем добор недостающих по `CITY_ID` с исключением текущей и уже выбранных. | `VacancyRepository` |
 | **№4** (Регистрозависимость `CODE`/`ID`) | Запросы со строчными `?code=...` и `?id=...` игнорируются, открывается список. Работают только верхнерегистровые `CODE` и `ID`. | `VacanciesComponent` считывает строго `$request->get('ID')` и `$request->get('CODE')`, без проверки строчных ключей. | `VacanciesComponent` |
 | **№5** (Приоритет `ID` над `CODE`) | При `?CODE=frontend-vue&ID=1` открывается вакансия с ID 1. | В `VacanciesComponent` проверка ID предшествует проверке CODE: `if ($id > 0) { ... } elseif ($code !== '') { ... }`. | `VacanciesComponent` |
@@ -278,7 +278,7 @@ public function toggleAction(ToggleFavoriteRequest $request, FavoriteService $fa
    - `create(VacancyResponseInputDto $dto): Result`: добавление записи в `VacancyResponseTable`.
    - `getValidCountByVacancyId(int $vacancyId): int`: количество откликов по вакансии со статусом `STATUS <> 'SPAM'`.
    - `getValidCountMap(array $vacancyIds): array<int, int>`: пакетный подсчёт для списка вакансий.
-   - `getWeekCountIncludingSpam(int $vacancyId): int`: количество откликов за 7 дней **без фильтра по SPAM** (сохранение бага №2 для детальной страницы).
+   - `getWeekCount(int $vacancyId): int`: количество откликов за 7 дней с `STATUS <> 'SPAM'` (баг №2 закрыт).
    - `getWeekSummary(): array{total: int, vacancies: int}`: общее количество валидных откликов и уникальных вакансий за 7 дней (`COUNT(*)`, `COUNT(DISTINCT VACANCY_ID)` где `STATUS <> 'SPAM'`).
 3. **`lib/Repository/VacancyRepository.php`:**
    - `getById(int $id): ?array`: выборка активного элемента инфоблока по ID.
@@ -338,7 +338,7 @@ public function toggleAction(ToggleFavoriteRequest $request, FavoriteService $fa
      - Разрешение вакансии: **приоритет ID над CODE (Баг №5)**.
      - Проверка активности: если не найдена или `ACTIVE !== 'Y'` -> возврат `null` (для 404).
      - Инкремент просмотров: если `!$isPost`, вызов `VacancyStatRepository::incrementViews($id)` (сохраняя баг №13).
-     - Получение счётчиков: валидные отклики и недельные отклики со спамом (сохраняя баг №2).
+     - Получение счётчиков: валидные отклики и недельные без SPAM (`getWeekCount`).
    - `getRelated(VacancyDto $vacancy, int $limit): list<VacancyDto>`: получение похожих вакансий через репозиторий.
 4. **`lib/Service/SidebarService.php`:**
    - `getForList(int $currentSectionId, int $popularCount): SidebarDto`: сборка разделов, топ-популярных вакансий и недельной сводки.
