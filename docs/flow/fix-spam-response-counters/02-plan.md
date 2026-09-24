@@ -10,10 +10,10 @@
 
 ## 2. Критерии готовности
 
-- [x] `/vacancies/?CODE=senior-php-bitrix` после seed: общий счётчик «2 отклика», недельный «2 за неделю» (не «3»). — Integration зелёный; e2e на шаге 4.
-- [ ] `/vacancies/`: сайдбар «За неделю: 7 откликов на 6 вакансий» без изменения логики `SidebarService` / `getWeekSummary`.
+- [x] `/vacancies/?CODE=senior-php-bitrix` после seed: общий счётчик «2 отклика», недельный «2 за неделю» (не «3»).
+- [x] `/vacancies/`: сайдбар «За неделю: 7 откликов на 6 вакансий» без изменения логики `SidebarService` / `getWeekSummary`.
 - [x] `VacancyResponseRepository::getWeekCount` с `whereNot('STATUS', 'SPAM')`; вызов в `VacancyService` обновлён; метода `getWeekCountIncludingSpam` нет.
-- [ ] Новые и обновлённые тесты зелёные: Integration (новый red→green), e2e детальной и сайдбара.
+- [x] Новые и обновлённые тесты зелёные: Integration (новый red→green), e2e детальной и сайдбара.
 - [ ] Реестр багов и документация обновлены (docs-keeper): §4 и матрица §3 — сайдбар 7 на 6, не 6; детальный счётчик закрыт.
 
 ## 3. Файлы
@@ -34,8 +34,8 @@
 - [x] **Шаг 1.** Красный тест (Integration): создать `tests/tests/Integration/VacancyResponseRepositoryTest.php`. Сьют **Integration**, не Unit: репозиторий ходит в ORM/ядро и seed; Feature/e2e избыточны для первого сигнала. Через `VacancyRepository::getByCode('senior-php-bitrix')` взять ID; вызвать текущий `getWeekCountIncludingSpam` (после шага 2 — `getWeekCount`) и `getValidCountByVacancyId`. Ожидания по seed: valid = 2, week = 2. До фикса week вернёт 3 → тест красный. При необходимости сразу назвать метод в тесте `getWeekCount` и править репозиторий в том же чекпоинте после красного прогона.
 - [x] **Шаг 2.** Правка репозитория — `www/local/modules/ws.vacancies/lib/Repository/VacancyResponseRepository.php`: переименовать метод, добавить `->whereNot('STATUS', 'SPAM')` рядом с фильтром по `CREATED`, обновить комментарий.
 - [x] **Шаг 3.** Правка сервиса — `www/local/modules/ws.vacancies/lib/Service/VacancyService.php`: заменить вызов на `getWeekCount`.
-- [ ] **Коммит:** `fix(vacancies): exclude SPAM from detail week response count`
-- [ ] **Шаг 4.** Обновить характеризующие e2e в `e2e/tests/Browser/VacanciesTest.php`:
+- [x] **Коммит:** `fix(vacancies): exclude SPAM from detail week response count`
+- [x] **Шаг 4.** Обновить характеризующие e2e в `e2e/tests/Browser/VacanciesTest.php`:
   - `рассинхрон счётчиков откликов у senior-php (баг №2)` → ожидание `.lv-stats-week` = `2 за неделю` (общий «2 отклика» без изменений); название можно сменить на согласованность счётчиков без рассинхрона.
   - `сайдбар: направления, популярные и сводка со SPAM (баг №2)` → оставить assert `За неделю: 7 откликов на 6 вакансий`; переименовать (например, убрать «со SPAM»), чтобы не требовать ошибочные «6» из реестра.
 - [ ] **Коммит:** `test(vacancies): expect spam-free week counters in e2e`
@@ -98,5 +98,7 @@ WHERE CREATED >= NOW() - INTERVAL 7 DAY
 
 ## 8. Прогресс
 
-- Шаги 1–3: красный Integration (`getWeekCount` undefined) → правка repo/service → Integration 4 passed (1 warning в соседнем тесте).
-- Коммит 1 — в процессе.
+- Шаги 1–3 + коммит `ea3e3d2`: red Integration → `getWeekCount` + `whereNot SPAM` → Integration 4 passed.
+- Шаг 4: e2e сайдбар и детальная; assert общего счётчика уточнён до `.lv-stats > span:nth-child(2) b` (после фикса «2» встречалось дважды в `.lv-stats`).
+- Коммит 2 — в процессе.
+- docs-keeper: реестр / legacy — не трогали.

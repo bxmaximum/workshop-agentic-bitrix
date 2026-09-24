@@ -50,7 +50,7 @@ describe('Вакансии — список', function () {
             ->assertSeeIn('.page-footer', '© Компания, 2017–2026. Раздел вакансий.');
     });
 
-    test('сайдбар: направления, популярные и сводка со SPAM (баг №2)', function () {
+    test('сайдбар: направления, популярные и сводка за неделю', function () {
         visit(site('/vacancies/'))
             ->assertSeeIn('.lv-side', 'Разработка')
             ->assertSeeIn('.lv-side', '(7)')
@@ -438,12 +438,12 @@ describe('Вакансии — детальная страница', function ()
             ->assertDontSeeIn('.lv-meta .lv-salary', 'до');
     });
 
-    test('рассинхрон счётчиков откликов у senior-php (баг №2)', function () {
+    test('согласованность счётчиков откликов у senior-php', function () {
         visit(site('/vacancies/?CODE=senior-php-bitrix'))
             ->assertSeeIn('.lv-stats', 'Откликов:')
-            ->assertSeeIn('.lv-stats', '2')
+            ->assertSeeIn('.lv-stats > span:nth-child(2) b', '2')
             ->assertSeeIn('.lv-stats', 'отклика')
-            ->assertSeeIn('.lv-stats-week', '3 за неделю');
+            ->assertSeeIn('.lv-stats-week', '2 за неделю');
     });
 
     test('похожие для Поддержки добираются из Разработки (баг №3)', function () {
