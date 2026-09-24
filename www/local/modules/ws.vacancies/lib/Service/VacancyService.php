@@ -104,7 +104,7 @@ final class VacancyService
 
 		$views = $this->stats->getViews($vacancyId);
 		$responseCount = $this->responses->getValidCountByVacancyId($vacancyId);
-		$weekCount = $this->responses->getWeekCountIncludingSpam($vacancyId);
+		$weekCount = $this->responses->getWeekCount($vacancyId);
 
 		$sectionName = '';
 		$sectionUrl = '';

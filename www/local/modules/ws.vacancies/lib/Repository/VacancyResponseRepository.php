@@ -77,9 +77,9 @@ final class VacancyResponseRepository
 	}
 
 	/**
-	 * Отклики за 7 дней без фильтра по SPAM (баг №2 для детальной страницы).
+	 * Отклики за 7 дней без SPAM (как getValidCountByVacancyId / getWeekSummary).
 	 */
-	public function getWeekCountIncludingSpam(int $vacancyId): int
+	public function getWeekCount(int $vacancyId): int
 	{
 		if ($vacancyId <= 0)
 		{
@@ -92,6 +92,7 @@ final class VacancyResponseRepository
 			->addSelect(new ExpressionField('CNT', 'COUNT(*)'))
 			->where('VACANCY_ID', $vacancyId)
 			->where('CREATED', '>=', $since)
+			->whereNot('STATUS', 'SPAM')
 			->fetch();
 
 		return $row ? (int)$row['CNT'] : 0;
