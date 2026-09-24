@@ -3,7 +3,7 @@
 | Поле | Значение |
 |------|----------|
 | Задача | Баг №2: убрать SPAM из недельного счётчика на детальной странице |
-| Стадия | Целостность (docs-keeper) |
+| Стадия | Готово |
 | Гейты | человек |
 | База | lesson5 |
 | Ветка | fix/fix-spam-response-counters |
@@ -29,3 +29,4 @@
 - 2026-09-24 23:20 — Реализация: коммиты `ea3e3d2`, `cf553f4`. Integration 4 passed, e2e 2 passed. Запущен reviewer, круг 1.
 - 2026-09-24 23:35 — Ревью, круг 1: APPROVE. Minor по реестру и `refactoring_plan` — на docs-keeper. Запущен docs-keeper.
 - 2026-09-24 23:50 — Docs-keeper: обновлены реестр §4/матрица §3, `docs/legacy/vacancies.md`, `docs/refactoring_plan.md`, `project-context`. AGENTS.md без правок (канон уже верный).
+- 2026-09-24 23:55 — Гейт 3: готово к финалу. Отчёт `04-report-bitrix.md`. Финал: ветка без push, PR и мерджа.
