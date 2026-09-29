@@ -46,7 +46,7 @@
   Planner проверил: в `VacancyRepositoryTest.php` и `VacanciesPageTest.php` нет `__DIR__` и `dirname()`, перенос ничего не ломает. `tests/Pest.php` считает пути от `tests/` (`__DIR__ . '/../www'`, `dirname(__DIR__) . '/docs/legacy/seed.php'`) и остаётся верным. Проверка на базе, до правки бага: `composer test:integration` — 4 теста зелёные («инфоблок найден», «активных 14», два теста `sort=views`). `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — 2 зелёных. Результат записать в «Прогресс». Если что-то из старых тестов красное, попутно не чинить: записать и вернуться к оркестратору. Эти сьюты не запускались с `0a0985f`.
 - [x] **Коммит:** `test: вернуть сьюты Integration и Feature в tests/`. В теле: «0a0985f случайно перенёс их в tests/tests/, а phpunit.xml, Pest.php, CI и доки ждут tests/Integration и tests/Feature».
 
-- [ ] **Шаг 2.** Красные тесты, сьют **Integration**. Почему не Unit: `VacancyRepository` и `VacancyService` объявлены `final` (подменить их нельзя), конструктор репозитория вызывает `Loader::includeModule('iblock')` и `IblockTable::compileEntity()`, а сам подбор — ORM-запрос к инфоблоку. Без ядра и БД проверять нечего. Feature и e2e для первого сигнала избыточны и зависят от кеша компонента.
+- [x] **Шаг 2.** Красные тесты, сьют **Integration**. Почему не Unit: `VacancyRepository` и `VacancyService` объявлены `final` (подменить их нельзя), конструктор репозитория вызывает `Loader::includeModule('iblock')` и `IblockTable::compileEntity()`, а сам подбор — ORM-запрос к инфоблоку. Без ядра и БД проверять нечего. Feature и e2e для первого сигнала избыточны и зависят от кеша компонента.
 
   **2a.** В конец `tests/Integration/VacancyRepositoryTest.php` добавить блок. Стиль файла — Pest-замыкания в `describe` с `use`. ID ищутся по коду через `getByCode()`: ID в коде не зашивать. До правки хелпер вызывает текущую сигнатуру с реальным `CITY_ID`, чтобы тест падал на ассерте и воспроизводил баг, а не на `ArgumentCountError`:
   ```php
@@ -123,7 +123,7 @@
 
   **Запуск:** `composer test:integration`. Ожидаемо красные 5 тестов: 3 случая «Поддержки» (лишние middle-php-developer / frontend-vue / senior-php-bitrix), «без раздела» (вернёт 3 московские вакансии по городу) и «support-l1» в сервисе. Зелёными остаются senior-php-bitrix в обоих файлах и 4 старых теста. Вывод записать в «Прогресс».
 
-- [ ] **Шаг 3.** Правка — `www/local/modules/ws.vacancies/lib/Repository/VacancyRepository.php`, метод `getRelated()` (стр. 164–207). Стиль файла: табы, фигурные скобки на новой строке.
+- [x] **Шаг 3.** Правка — `www/local/modules/ws.vacancies/lib/Repository/VacancyRepository.php`, метод `getRelated()` (стр. 164–207). Стиль файла: табы, фигурные скобки на новой строке.
   ```php
   /**
    * Похожие: активные вакансии того же раздела без текущей, свежие первыми.
@@ -145,7 +145,7 @@
   `www/local/modules/ws.vacancies/lib/Service/VacancyService.php`, стр. 149–154: `$this->vacancies->getRelated(vacancyId: $vacancy->id, sectionId: $vacancy->sectionId, limit: $limit)`. С именованными аргументами несовпадение сигнатур падает с ошибкой, а не сдвигает аргументы молча. В хелпере `tests/Integration/VacancyRepositoryTest.php` удалить строку с `CITY_ID`.
   Линт: `.githooks/lib/lint-file.sh www/local/modules/ws.vacancies/lib/Repository/VacancyRepository.php www/local/modules/ws.vacancies/lib/Service/VacancyService.php tests/Integration/VacancyRepositoryTest.php tests/Integration/VacancyServiceTest.php`.
   `composer test:unit` и `composer test:integration` — всё зелёное: 11 Integration (4 старых, 3 случая из датасета, 2 в репозитории, 2 в сервисе). Сбросить кеш компонента (раздел 5), затем `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — 2 зелёных.
-- [ ] **Коммит:** `fix(vacancies): похожие вакансии только из своего раздела`. В теле: убран добор по CITY_ID, параметр $cityId удалён; при нехватке соседей блок показывает сколько есть; добор по тегам сознательно не делали (см. 01-task.md). В коммит входят оба PHP-файла модуля и оба файла тестов.
+- [x] **Коммит:** `fix(vacancies): похожие вакансии только из своего раздела`. В теле: убран добор по CITY_ID, параметр $cityId удалён; при нехватке соседей блок показывает сколько есть; добор по тегам сознательно не делали (см. 01-task.md). В коммит входят оба PHP-файла модуля и оба файла тестов.
 
 - [ ] **Шаг 4.** Обновить характеризующий e2e — `e2e/tests/Browser/VacanciesTest.php`, стр. 449–455. Название — без «(баг №N)», как при исправлении бага №1 в `bd0043a` («по просмотрам сортирует глобально до пагинации»). Проверки по всей странице (`assertSourceHas/Missing`) для отрицательных случаев не годятся: в «Популярных» на support-l2 есть frontend-vue, на support-lead — senior-php-bitrix. Поэтому все проверки ограничены блоком «Похожие». Это первый `div.lv-box` в `aside.lv-side` (`template.php`, стр. 131–144), якорь — его `h3`. В Pest Browser v5.0.1 (`e2e/vendor/pestphp/pest-plugin-browser`) для этого есть `assertSeeIn`, `assertDontSeeIn`, `assertCount`, `assertSourceInHas` и `assertSourceInMissing` (innerHTML элемента). Локатор работает в strict-режиме, селектор должен давать ровно один элемент — `.lv-side > .lv-box:first-child` даёт.
   ```php
@@ -239,3 +239,26 @@ PHP для всех прогонов: Omut php-8.4 (8.4.25) + `PHPRC=php-8.4-mys
 - `composer test:unit` — **9 passed**, 0 failed.
 - `composer test:integration` — **3 passed + 1 warning**, 0 failed, код выхода 0. Warning в первом тесте («инфоблок «Вакансии» найден»): `Entity \Bitrix\Iblock\Elements\ElementVacancy already has Field with name TAGS` (E_USER_WARNING из `IblockTable::compileEntity()`, ядро `main/lib/ORM/Entity.php:465`). Свойство инфоблока `TAGS` совпадает по имени с полем `TAGS` элемента, предупреждение возникает при первой компиляции сущности в процессе. Ассерты теста выполняются, `failOnWarning="false"` в `phpunit.xml`, так что тест не красный. По правилу шага попутно не чиню, это не относится к багу №3.
 - `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — **2 passed**, 0 failed.
+- Коммит `3dc6dbd`.
+
+### Шаг 2 — красные Integration-тесты (до правки)
+
+- Добавлен `describe('getRelated: …')` в `tests/Integration/VacancyRepositoryTest.php`, создан `tests/Integration/VacancyServiceTest.php` — код как в плане.
+- `ServiceLocator::getInstance()->get(VacancyService::class)` в CLI собрал сервис автоматически, ручная сборка не понадобилась. `VacancyDto::fromRow($row, $row)` подошёл: сигнатура `fromRow(array $fields, array $properties = [], array $extra = [])`.
+- `composer test:integration` — **5 failed, 5 passed + 1 warning** (тот же warning `TAGS`, что на базе). Как и ожидалось по плану:
+  - support-l1 → `[support-l2, support-lead, middle-php-developer]`;
+  - support-l2 → `[support-l1, support-lead, frontend-vue]`;
+  - support-lead → `[support-l1, support-l2, senior-php-bitrix]`;
+  - «без раздела» (senior-php-bitrix, `sectionId = 0`) → `[sales-manager-b2b, devops-engineer, tech-lead]` — добор по городу moscow из любых разделов;
+  - сервис, support-l1 → `[support-l2, support-lead, middle-php-developer]`.
+  - Зелёные: senior-php-bitrix в репозитории и сервисе, 4 старых теста (первый с warning).
+
+### Шаг 3 — правка
+
+- `VacancyRepository::getRelated(int $vacancyId, int $sectionId, int $limit)`: guard `$sectionId <= 0 || $limit <= 0 → []`, один запрос по разделу, добор по `CITY.VALUE` и `$excludeIds` удалены, PHPDoc добавлен. `VacancyService::getRelated()` вызывает репозиторий именованными аргументами без `cityId`. Строка с `CITY_ID` в хелпере теста удалена. Других вызовов репозиторного `getRelated` нет (grep по `www/local`, `tests/`, `e2e/tests`).
+- Линт `.githooks/lib/lint-file.sh` на 4 файла — без ошибок.
+- `composer test:unit` — **9 passed**, 0 failed.
+- `composer test:integration` — **10 passed + 1 warning**, 0 failed (тот же warning `TAGS` в первом старом тесте).
+- Сброс кеша компонента, затем `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — **2 passed**, 0 failed. Ручная проверка `curl …/vacancies/?CODE=support-l1`: в «Похожих» support-l2 и support-lead, 2 карточки.
+- **Отклонение 1 (счёт тестов).** В плане ожидалось «11 Integration (4 старых, 3 случая из датасета, 2 в репозитории, 2 в сервисе)», по факту 4 + 3 + 2 + 2 = 11 тестов, из них 10 passed + 1 passed-with-warning. Pest считает warning отдельно от passed, отсюда «10 passed, 1 warning». Ничего не упало.
+- **Отклонение 2 (сброс кеша).** `rm -rf www/bitrix/cache/s1/legacy/vacancies` в этой сессии не разрешён системой прав (неинтерактивный режим). Кеш сбрасывал штатным способом из раздела 5: `Application::getInstance()->getTaggedCache()->clearByTag('ws_vacancies')` через `php -r` с ядром (bootstrap как в `seed.php`). Файловый кеш Bitrix при этом не удаляет файлы сразу, а переименовывает каталог (`cd2` → `cd2.~NNNNNN`) под отложенное удаление агентом `cacheCleanJob`: по старому пути кеш больше не читается, эффект тот же. Побочный эффект — запись в `b_cache_tag`, безвредно.

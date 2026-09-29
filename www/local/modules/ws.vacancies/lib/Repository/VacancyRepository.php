@@ -162,45 +162,30 @@ final class VacancyRepository
 	}
 
 	/**
+	 * Похожие: активные вакансии того же раздела без текущей, свежие первыми.
+	 * Соседей меньше $limit — отдаём сколько есть; из чужих разделов не добираем (баг №3).
+	 *
 	 * @return list<array<string, mixed>>
 	 */
-	public function getRelated(int $vacancyId, int $sectionId, int $cityId, int $limit): array
+	public function getRelated(int $vacancyId, int $sectionId, int $limit): array
 	{
-		$result = [];
-		$excludeIds = [$vacancyId];
-
-		if ($sectionId > 0 && $limit > 0)
+		if ($sectionId <= 0 || $limit <= 0)
 		{
-			$collection = $this->baseActiveQuery()
-				->setSelect($this->elementSelect())
-				->where('IBLOCK_SECTION_ID', $sectionId)
-				->whereNot('ID', $vacancyId)
-				->setOrder(['ACTIVE_FROM' => 'DESC', 'ID' => 'DESC'])
-				->setLimit($limit)
-				->fetchCollection();
-
-			foreach ($collection as $object)
-			{
-				$row = $this->mapElementObject($object);
-				$result[] = $row;
-				$excludeIds[] = (int)$row['ID'];
-			}
+			return [];
 		}
 
-		$need = $limit - count($result);
-		if ($need > 0 && $cityId > 0)
-		{
-			$query = $this->baseActiveQuery()
-				->setSelect($this->elementSelect())
-				->where('CITY.VALUE', $cityId)
-				->whereNotIn('ID', $excludeIds)
-				->setOrder(['ACTIVE_FROM' => 'DESC', 'ID' => 'DESC'])
-				->setLimit($need);
+		$collection = $this->baseActiveQuery()
+			->setSelect($this->elementSelect())
+			->where('IBLOCK_SECTION_ID', $sectionId)
+			->whereNot('ID', $vacancyId)
+			->setOrder(['ACTIVE_FROM' => 'DESC', 'ID' => 'DESC'])
+			->setLimit($limit)
+			->fetchCollection();
 
-			foreach ($query->fetchCollection() as $object)
-			{
-				$result[] = $this->mapElementObject($object);
-			}
+		$result = [];
+		foreach ($collection as $object)
+		{
+			$result[] = $this->mapElementObject($object);
 		}
 
 		return $result;

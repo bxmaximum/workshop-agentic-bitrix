@@ -160,3 +160,39 @@ describe('sort=views: tie-break и LEFT JOIN', function () {
         }
     });
 });
+
+describe('getRelated: только свой раздел, без добора по городу', function () {
+    /**
+     * @return list<string> коды похожих вакансий
+     */
+    $relatedCodes = static function (string $code, ?int $sectionId = null, int $limit = 3): array {
+        $repo = new VacancyRepository();
+        $row = $repo->getByCode($code);
+        expect($row)->not->toBeNull();
+
+        $rows = $repo->getRelated(
+            (int)$row['ID'],
+            $sectionId ?? (int)$row['IBLOCK_SECTION_ID'],
+            $limit,
+        );
+
+        return array_map(static fn(array $item): string => (string)$item['CODE'], $rows);
+    };
+
+    test('у вакансий «Поддержки» только соседи по разделу', function (string $code, array $expected) use ($relatedCodes) {
+        expect($relatedCodes($code))->toBe($expected);
+    })->with([
+        'support-l1' => ['support-l1', ['support-l2', 'support-lead']],
+        'support-l2' => ['support-l2', ['support-l1', 'support-lead']],
+        'support-lead' => ['support-lead', ['support-l1', 'support-l2']],
+    ]);
+
+    test('у senior-php-bitrix три соседа из «Разработки» без неё самой', function () use ($relatedCodes) {
+        expect($relatedCodes('senior-php-bitrix'))
+            ->toBe(['middle-php-developer', 'frontend-vue', 'devops-engineer']);
+    });
+
+    test('без раздела похожих нет', function () use ($relatedCodes) {
+        expect($relatedCodes('senior-php-bitrix', sectionId: 0))->toBe([]);
+    });
+});

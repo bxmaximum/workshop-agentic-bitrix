@@ -147,10 +147,9 @@ final class VacancyService
 	public function getRelated(VacancyDto $vacancy, int $limit, string $baseUrl = UrlBuilder::DEFAULT_BASE_URL): array
 	{
 		$rows = $this->vacancies->getRelated(
-			$vacancy->id,
-			$vacancy->sectionId,
-			$vacancy->cityId,
-			$limit,
+			vacancyId: $vacancy->id,
+			sectionId: $vacancy->sectionId,
+			limit: $limit,
 		);
 
 		$ids = array_map(static fn(array $row): int => (int)$row['ID'], $rows);
