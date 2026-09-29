@@ -2,7 +2,7 @@
 
 - **Ветка:** `fix/bug-3-similar-vacancies` (от `lesson5`)
 - **Задача:** ./01-task.md
-- **Статус:** на утверждении
+- **Статус:** утверждён (гейт 2, агент, 2026-09-29 — см. `00-state.md`)
 
 ## 1. Цель
 
@@ -36,7 +36,7 @@
 
 Шаг 1 — подготовка инфраструктуры, а не красный тест: без него Integration не запускается вообще (решение 4 гейта 1).
 
-- [ ] **Шаг 1.** Вернуть сьюты на место:
+- [x] **Шаг 1.** Вернуть сьюты на место:
   ```bash
   cd /Users/kirk/Omut/lesson3-copy.bitrix
   git mv tests/tests/Integration tests/Integration
@@ -44,7 +44,7 @@
   rmdir tests/tests/Unit tests/tests   # остаются пустые неотслеживаемые каталоги
   ```
   Planner проверил: в `VacancyRepositoryTest.php` и `VacanciesPageTest.php` нет `__DIR__` и `dirname()`, перенос ничего не ломает. `tests/Pest.php` считает пути от `tests/` (`__DIR__ . '/../www'`, `dirname(__DIR__) . '/docs/legacy/seed.php'`) и остаётся верным. Проверка на базе, до правки бага: `composer test:integration` — 4 теста зелёные («инфоблок найден», «активных 14», два теста `sort=views`). `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — 2 зелёных. Результат записать в «Прогресс». Если что-то из старых тестов красное, попутно не чинить: записать и вернуться к оркестратору. Эти сьюты не запускались с `0a0985f`.
-- [ ] **Коммит:** `test: вернуть сьюты Integration и Feature в tests/`. В теле: «0a0985f случайно перенёс их в tests/tests/, а phpunit.xml, Pest.php, CI и доки ждут tests/Integration и tests/Feature».
+- [x] **Коммит:** `test: вернуть сьюты Integration и Feature в tests/`. В теле: «0a0985f случайно перенёс их в tests/tests/, а phpunit.xml, Pest.php, CI и доки ждут tests/Integration и tests/Feature».
 
 - [ ] **Шаг 2.** Красные тесты, сьют **Integration**. Почему не Unit: `VacancyRepository` и `VacancyService` объявлены `final` (подменить их нельзя), конструктор репозитория вызывает `Loader::includeModule('iblock')` и `IblockTable::compileEntity()`, а сам подбор — ORM-запрос к инфоблоку. Без ядра и БД проверять нечего. Feature и e2e для первого сигнала избыточны и зависят от кеша компонента.
 
@@ -231,4 +231,11 @@ rm -rf www/bitrix/cache/s1/legacy/vacancies               # сброс кеша 
 
 ## 8. Прогресс
 
-<implementer отмечает здесь и галочками выше>
+PHP для всех прогонов: Omut php-8.4 (8.4.25) + `PHPRC=php-8.4-mysql-8.4.ini`.
+
+### Шаг 1 — сьюты на месте (база, до правки)
+
+- `git mv tests/tests/{Integration,Feature} tests/`, пустые `tests/tests/Unit` и `tests/tests` удалены.
+- `composer test:unit` — **9 passed**, 0 failed.
+- `composer test:integration` — **3 passed + 1 warning**, 0 failed, код выхода 0. Warning в первом тесте («инфоблок «Вакансии» найден»): `Entity \Bitrix\Iblock\Elements\ElementVacancy already has Field with name TAGS` (E_USER_WARNING из `IblockTable::compileEntity()`, ядро `main/lib/ORM/Entity.php:465`). Свойство инфоблока `TAGS` совпадает по имени с полем `TAGS` элемента, предупреждение возникает при первой компиляции сущности в процессе. Ассерты теста выполняются, `failOnWarning="false"` в `phpunit.xml`, так что тест не красный. По правилу шага попутно не чиню, это не относится к багу №3.
+- `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — **2 passed**, 0 failed.
