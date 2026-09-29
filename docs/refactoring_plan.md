@@ -32,7 +32,7 @@
 |---|---|---|---|
 | **№1** (Сортировка `sort=views`) | Сортировка по просмотрам выполняется не в SQL, а в памяти PHP для 5 элементов текущей страницы по дате. `DevOps-инженер` (190 просмотров) оказывается на 2-й странице. | `VacancyService::listVacancies()` при `sort === 'views'` запрашивает страницу элементов у `VacancyRepository` с сортировкой по дате (`ACTIVE_FROM DESC, ID DESC`), а затем выполняет `usort` по просмотрам полученного среза. | `VacancyService` |
 | **№2** (Рассинхрон откликов) | На детальной странице общий счётчик откликов исключает `SPAM`, а недельный счётчик считает абсолютно все отклики (включая `SPAM`). В сайдбаре списка в сводке также суммируются недельные записи. | `VacancyResponseRepository` реализует два разных метода: `getValidCountByVacancyId()` (`STATUS <> 'SPAM'`) и `getWeekCountIncludingSpamByVacancyId()` (без фильтра по статусу). | `VacancyResponseRepository` |
-| **№3** (Подмешивание чужого раздела) | В похожих вакансиях, если в разделе вакансий < 3, недостающие добираются по совпадению `CITY_ID` из чужих разделов (для `support-l1` добирается `middle-php-developer`). | `VacancyRepository::getRelatedVacancies()` сохраняет двухэтапную логику: выборка по `SECTION_ID`, затем добор недостающих по `CITY_ID` с исключением текущей и уже выбранных. | `VacancyRepository` |
+| **№3** (Подмешивание чужого раздела) | Ранее в похожих вакансиях, если у вакансии в разделе меньше 3 соседей, недостающие добирались по совпадению `CITY_ID` из чужих разделов (для `support-l1` добирался `middle-php-developer`). | **Исправлено:** `VacancyRepository::getRelated()` выбирает только соседей по разделу без текущей; добора по `CITY_ID` и параметра `$cityId` нет. | `VacancyRepository` |
 | **№4** (Регистрозависимость `CODE`/`ID`) | Запросы со строчными `?code=...` и `?id=...` игнорируются, открывается список. Работают только верхнерегистровые `CODE` и `ID`. | `VacanciesComponent` считывает строго `$request->get('ID')` и `$request->get('CODE')`, без проверки строчных ключей. | `VacanciesComponent` |
 | **№5** (Приоритет `ID` над `CODE`) | При `?CODE=frontend-vue&ID=1` открывается вакансия с ID 1. | В `VacanciesComponent` проверка ID предшествует проверке CODE: `if ($id > 0) { ... } elseif ($code !== '') { ... }`. | `VacanciesComponent` |
 | **№6** (ЧПУ без обработки) | По ЧПУ-адресу `/vacancies/senior-php-bitrix/` отдаётся HTTP 200 с пустым HTML `<html><head></head><body></body></html>`. | Правила URL-rewrite не создаются; обработка ЧПУ не подключается. | Конфигурация / роутинг |
@@ -294,9 +294,7 @@ public function toggleAction(ToggleFavoriteRequest $request, FavoriteService $fa
        - `q` -> ConditionTree `LOGIC => OR` (`%NAME`, `%PREVIEW_TEXT`, `%PROPERTY_TAGS`, сохраняя баг №9)
      - Подсчёт общего числа элементов `total`.
      - Выборка среза пагинации с учётом рассчитанного `$filter->page`.
-   - `getRelated(int $vacancyId, int $sectionId, int $cityId, int $limit): array`:
-     - Шаг 1: выборка из того же раздела `SECTION_ID` (исключая текущую).
-     - Шаг 2: если элементов < `$limit` и `$cityId > 0`, добор недостающих элементов из того же города (`PROPERTY_CITY = $cityId`, исключая уже выбранные), сохраняя баг №3.
+   - `getRelated(int $vacancyId, int $sectionId, int $limit): array`: выборка из того же раздела `SECTION_ID` (исключая текущую), без добора из других разделов (баг №3 закрыт, параметр `$cityId` удалён).
    - `getSectionsWithCounts(int $iblockId): array`: выборка активных разделов инфоблока с подсчётом активных элементов.
    - `getCities(int $iblockId): array`: список городов из списочного свойства `CITY`.
    - `getExperienceList(int $iblockId): array`: список опыта из списочного свойства `EXPERIENCE`.

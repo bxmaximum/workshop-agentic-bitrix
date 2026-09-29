@@ -15,7 +15,7 @@
 - [x] `/vacancies/?CODE=support-l1`: в блоке «Похожие вакансии» 2 ссылки (support-l2, support-lead), middle-php-developer в блоке нет. `/vacancies/?CODE=support-l2`: 2 ссылки, frontend-vue в блоке нет.
 - [x] `composer test:integration` и `test:feature` находят тесты в `tests/Integration` и `tests/Feature`.
 - [x] Новые и обновлённые тесты зелёные: Unit, Integration (в том числе новые `getRelated`), Feature, полный e2e после сброса кеша компонента.
-- [ ] Реестр багов и документация обновлены (docs-keeper).
+- [x] Реестр багов и документация обновлены (docs-keeper).
 
 ## 3. Файлы
 
@@ -172,7 +172,7 @@
   Прогон: сбросить кеш, затем полный e2e (раздел 5). Для точечной проверки: `php ./vendor/bin/pest --filter='похожие|сайдбар детальной|популярные на детальной'`.
 - [x] **Коммит:** `test(vacancies): e2e похожих — только вакансии своего раздела`.
 
-- [ ] **Шаг 5.** docs-keeper по разделу 7. Отдельный коммит `docs(vacancies): …` делает он, не implementer.
+- [x] **Шаг 5.** docs-keeper по разделу 7. Отдельный коммит `docs(vacancies): …` делает он, не implementer.
 
 ## 5. Проверка
 
