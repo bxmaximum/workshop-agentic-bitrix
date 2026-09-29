@@ -3,9 +3,20 @@
     {
       "name": "Default",
       "files": [
-        ".cursor/agents/reviewer.md",
+        "farm/.claude",
+        "farm/.gitignore",
+        "farm/CLAUDE.md",
+        "farm/Projects/registry.md",
+        "farm/README.md",
+        "farm/bin/farm",
+        "farm/claude/settings.json",
+        "farm/claude/skills/ops/SKILL.md",
+        "farm/config/farm.env.example",
+        "farm/logs/.gitkeep",
+        "farm/runs/.gitkeep",
+        "farm/web/server.mjs",
         ".vscode/changelists.json",
-        ".cursor/commands/flow.md"
+        "docs/flow/bug-3-similar-vacancies/00-state.md"
       ]
     }
   ],

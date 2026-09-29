@@ -1,0 +1,19 @@
+{
+  "enabledPlugins": {
+    "telegram@claude-plugins-official": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read", "Glob", "Grep", "Skill", "TodoWrite", "Edit", "Write",
+      "Bash(*)",
+      "mcp__plugin_telegram_telegram", "mcp__plugin_telegram_telegram__*", "mcp__telegram", "mcp__telegram__*"
+    ],
+    "ask": [],
+    "deny": [
+      "Bash(rm -rf /*)", "Bash(rm -rf ~*)", "Bash(mkfs:*)", "Bash(dd if=*)",
+      "Bash(git push:*)", "Bash(ssh:*)", "Bash(sudo:*)",
+      "Read(./config/farm.env)", "Read(~/.claude/channels/**/.env)", "Read(~/.claude/channels/**/access.json)"
+    ]
+  }
+}

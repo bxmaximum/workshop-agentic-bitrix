@@ -1,0 +1,219 @@
+#!/bin/zsh
+# Farm — минимальная автоферма на Claude Code: постоянная сессия с Telegram-каналом,
+# реестр проектов и запуск headless-агентов в репозиториях проектов.
+#
+# Использование:
+#   farm up [--fresh]     запустить сессию (tmux) и веб-интерфейс
+#   farm down | restart   остановить / перезапустить
+#   farm status | attach | logs [claude|web]
+#   farm doctor           что настроено, чего не хватает
+#   farm link             симлинк .claude → claude (делается сам при up)
+#   farm run <slug> <задача…>   запустить задачу в репозитории проекта (это делает сама сессия из скилла ops)
+#   farm web              только веб-интерфейс, без сессии (для разработки)
+set -euo pipefail
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.bun/bin:$PATH"
+
+FARM_ROOT="${FARM_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+ENV_FILE="$FARM_ROOT/config/farm.env"
+[[ -f "$ENV_FILE" ]] && { set -a; source "$ENV_FILE"; set +a; }
+
+SESSION="${FARM_SESSION:-farm}"
+CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude)}"
+NODE_BIN="${NODE_BIN:-$(command -v node)}"
+FARM_MODEL="${FARM_MODEL:-claude-opus-5-5}"        # чат и маршрутизация
+FARM_EFFORT="${FARM_EFFORT:-low}"
+FARM_TASK_MODEL="${FARM_TASK_MODEL:-claude-opus-5-5}"   # вложенный агент в репо проекта
+FARM_TASK_EFFORT="${FARM_TASK_EFFORT:-xhigh}"
+FARM_WEB_PORT="${FARM_WEB_PORT:-4420}"
+FARM_MAX_TURNS="${FARM_MAX_TURNS:-200}"
+TELEGRAM_PLUGIN="telegram@claude-plugins-official"
+
+log() { print -P "%F{magenta}[farm]%f $*"; }
+
+# ---------------------------------------------------------------------------
+# Реестр проектов: Projects/registry.md, таблица | Slug | Репо | Режим | Статус |
+# ---------------------------------------------------------------------------
+registry_row() {
+  # $1 = slug → печатает "repo<TAB>mode<TAB>status" или ничего
+  awk -F'|' -v slug="$1" '
+    NR > 2 && $2 ~ /[^ ]/ {
+      s=$2; gsub(/^[ \t]+|[ \t]+$/, "", s)
+      if (s == slug) {
+        r=$3; m=$4; st=$5
+        gsub(/^[ \t]+|[ \t]+$/, "", r); gsub(/^[ \t]+|[ \t]+$/, "", m); gsub(/^[ \t]+|[ \t]+$/, "", st)
+        gsub(/`/, "", r)
+        print r "\t" m "\t" st; exit
+      }
+    }' "$FARM_ROOT/Projects/registry.md"
+}
+
+# ---------------------------------------------------------------------------
+# farm run <slug> <задача…> — запуск вложенного агента. Команда синхронная:
+# завершается вместе с агентом, поэтому сессия фермы запускает её в фоне и
+# получает уведомление Bash по окончании.
+# ---------------------------------------------------------------------------
+cmd_run() {
+  local slug="${1:?slug}"; shift
+  local task="$*"
+  [[ -n "$task" ]] || { log "пустая задача"; return 2; }
+
+  local row repo mode proj_status
+  row=$(registry_row "$slug")
+  [[ -n "$row" ]] || { log "проект '$slug' не найден в Projects/registry.md"; return 3; }
+  repo="${row%%$'\t'*}"; row="${row#*$'\t'}"; mode="${row%%$'\t'*}"; proj_status="${row#*$'\t'}"
+  repo="${repo/#\~/$HOME}"
+  [[ "$repo" == /* ]] || repo="$FARM_ROOT/$repo"
+  repo="$(cd "$repo" 2>/dev/null && pwd)" || { log "папка репозитория не найдена: $repo"; return 3; }
+
+  local run="$slug-$(date +%m%d%H%M%S)"
+  local prompt="$task"
+  if [[ "$mode" == "flow" ]]; then
+    prompt="/flow $task. Гейты: агент. Все решения на гейтах записывай в docs/flow/<slug>/00-state.md с обоснованием. В конце дай сводку: ветка, git log --oneline от базы, что проверено, что осталось человеку."
+  fi
+
+  mkdir -p "$FARM_ROOT/runs"
+  # Метаданные запуска читает веб-интерфейс. JSON собираем руками, чтобы не зависеть от jq.
+  local esc_task="${task//\\/\\\\}"; esc_task="${esc_task//\"/\\\"}"; esc_task="${esc_task//$'\n'/ }"
+  cat > "$FARM_ROOT/runs/$run.meta.json" <<JSON
+{"run":"$run","slug":"$slug","repo":"$repo","mode":"$mode","task":"$esc_task","model":"$FARM_TASK_MODEL","effort":"$FARM_TASK_EFFORT","started":"$(date +%Y-%m-%dT%H:%M:%S)"}
+JSON
+
+  # MCP-серверы репозитория надо разрешить явно, иначе headless-агент их не увидит.
+  local -a mcp_allow=()
+  if [[ -f "$repo/.mcp.json" ]]; then
+    local names
+    names=$("$NODE_BIN" -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(Object.keys(j.mcpServers||{}).join("\n"))' "$repo/.mcp.json" 2>/dev/null || true)
+    for n in ${(f)names}; do [[ -n "$n" ]] && mcp_allow+=("mcp__$n"); done
+  fi
+
+  log "run $run: $slug ($mode) → $repo"
+  log "модель $FARM_TASK_MODEL / $FARM_TASK_EFFORT; MCP: ${mcp_allow[*]:-нет}"
+
+  # Ключевые флаги:
+  #   --permission-mode dontAsk + --allowedTools: кнопок «Разрешить» в headless нет,
+  #     в других режимах команда вне allow-листа отклоняется молча.
+  #   --disallowedTools: push, ssh, деплой, удаление — только человек, после «да» в чате.
+  #   --settings с выключенным Telegram: у бота один поллер, вложенный агент иначе отберёт его у фермы.
+  #   --max-turns: страховка от зацикливания.  --output-format json: result и стоимость в runs/<run>.json.
+  local exit_code=0
+  ( cd "$repo" && "$CLAUDE_BIN" -p "$prompt" \
+      --model "$FARM_TASK_MODEL" --effort "$FARM_TASK_EFFORT" \
+      --permission-mode dontAsk \
+      --settings "{\"enabledPlugins\":{\"$TELEGRAM_PLUGIN\":false}}" \
+      --allowedTools "Bash" "Edit" "Write" "MultiEdit" "NotebookEdit" "WebFetch" "WebSearch" "Agent" "Task" "Skill" "TodoWrite" "${mcp_allow[@]}" \
+      --disallowedTools "Bash(git push:*)" "Bash(ssh:*)" "Bash(scp:*)" "Bash(rsync:*)" \
+        "Bash(docker compose up:*)" "Bash(docker compose down:*)" "Bash(docker rm:*)" "Bash(docker rmi:*)" \
+        "Bash(git reset --hard:*)" "Bash(git clean:*)" "Bash(git branch -D:*)" "Bash(sudo:*)" "Bash(rm -rf:*)" \
+      --max-turns "$FARM_MAX_TURNS" \
+      --output-format json < /dev/null > "$FARM_ROOT/runs/$run.json" 2> "$FARM_ROOT/runs/$run.err" ) || exit_code=$?
+
+  echo "$exit_code" > "$FARM_ROOT/runs/$run.exit"
+  log "run $run завершён, код $exit_code → runs/$run.json"
+  echo "$run"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# Сессия фермы
+# ---------------------------------------------------------------------------
+cmd_web_start() {
+  mkdir -p "$FARM_ROOT/logs"
+  if [[ -f "$FARM_ROOT/logs/web.pid" ]] && kill -0 "$(cat "$FARM_ROOT/logs/web.pid")" 2>/dev/null; then
+    log "веб уже запущен: http://localhost:$FARM_WEB_PORT"; return 0
+  fi
+  ( FARM_ROOT="$FARM_ROOT" FARM_WEB_PORT="$FARM_WEB_PORT" nohup "$NODE_BIN" "$FARM_ROOT/web/server.mjs" >> "$FARM_ROOT/logs/web.log" 2>&1 & echo $! > "$FARM_ROOT/logs/web.pid" )
+  log "веб: http://localhost:$FARM_WEB_PORT"
+}
+cmd_web_stop() {
+  [[ -f "$FARM_ROOT/logs/web.pid" ]] && { kill "$(cat "$FARM_ROOT/logs/web.pid")" 2>/dev/null || true; rm -f "$FARM_ROOT/logs/web.pid"; }
+}
+
+cmd_link() {
+  # Конфиг сессии лежит в claude/ (settings.json, skills/), а Claude Code ищет его в .claude/ —
+  # держим симлинк. Так папку можно копировать и класть в git без спецобработки .claude.
+  [[ -e "$FARM_ROOT/.claude" ]] || ln -sfn claude "$FARM_ROOT/.claude"
+}
+
+cmd_up() {
+  local fresh=0; [[ "${1:-}" == "--fresh" ]] && fresh=1
+  cmd_link
+  cmd_web_start
+  if tmux has-session -t "$SESSION" 2>/dev/null; then log "сессия уже запущена (farm attach)"; return 0; fi
+  mkdir -p "$FARM_ROOT/logs" "$FARM_ROOT/runs"
+  local -a args=(--name "Farm" --settings "$FARM_ROOT/claude/settings.json" --model "$FARM_MODEL" --effort "$FARM_EFFORT")
+  [[ "${FARM_REMOTE_CONTROL:-0}" == "1" ]] && args+=(--remote-control "Farm")
+  # --continue есть что продолжать только если Claude Code уже сохранял разговор для этой папки
+  # (~/.claude/projects/<путь с - вместо />/*.jsonl); иначе он пишет «no conversation» в stdout и выходит.
+  local proj="$HOME/.claude/projects/${FARM_ROOT//\//-}"
+  local -a prev=("$proj"/*.jsonl(N))
+  if (( fresh )) || (( ${#prev[@]} == 0 )); then log "новый разговор"; else args+=(--continue); fi
+  args+=(--channels "plugin:$TELEGRAM_PLUGIN")
+  local quoted="" a
+  for a in "${args[@]}"; do quoted+=" ${(q)a}"; done
+  # После выхода claude пане живёт ещё 30 с, чтобы farm attach показал, что случилось.
+  local cmd="cd '$FARM_ROOT' && FARM_ROOT='$FARM_ROOT' FARM_TASK_MODEL='$FARM_TASK_MODEL' FARM_TASK_EFFORT='$FARM_TASK_EFFORT' '$CLAUDE_BIN'$quoted 2>>'$FARM_ROOT/logs/claude.err'; code=\$?; echo; echo \"[farm] claude завершился с кодом \$code, пане закроется через 30 с\"; echo \"[farm] claude exit \$code \$(date)\" >> '$FARM_ROOT/logs/claude.err'; sleep 30"
+  tmux new-session -d -s "$SESSION" -c "$FARM_ROOT" -x 200 -y 50 "$cmd"
+  sleep 4
+  if ! tmux has-session -t "$SESSION" 2>/dev/null || tmux capture-pane -t "$SESSION" -p 2>/dev/null | grep -q "claude завершился"; then
+    log "claude завершился сразу после старта. Экран сессии:"
+    tmux capture-pane -t "$SESSION" -p 2>/dev/null | grep -v '^[[:space:]]*$' | tail -n 20 | sed 's/^/    /'
+    log "хвост logs/claude.err:"
+    tail -n 5 "$FARM_ROOT/logs/claude.err" 2>/dev/null | sed 's/^/    /'
+    log "частые причины: неизвестная модель в config/farm.env (публичные: claude-opus-5-5, claude-sonnet-5, claude-haiku-4-5), не установлен плагин telegram (farm doctor)"
+    tmux kill-session -t "$SESSION" 2>/dev/null || true
+    return 1
+  fi
+  log "сессия '$SESSION' запущена: чат $FARM_MODEL/$FARM_EFFORT, задачи $FARM_TASK_MODEL/$FARM_TASK_EFFORT"
+  log "смотреть: farm attach (выход из tmux: Ctrl-b d)"
+}
+
+cmd_down() {
+  tmux kill-session -t "$SESSION" 2>/dev/null && log "сессия остановлена" || log "сессия не запущена"
+  cmd_web_stop
+}
+
+cmd_status() {
+  if tmux has-session -t "$SESSION" 2>/dev/null; then
+    tmux capture-pane -t "$SESSION" -p 2>/dev/null | grep -q "claude завершился" && log "сессия $SESSION: claude завершился (farm attach покажет почему)" || log "сессия $SESSION: запущена"
+  else log "сессия $SESSION: не запущена"; fi
+  curl -s --max-time 2 "http://127.0.0.1:$FARM_WEB_PORT/api/state" >/dev/null && log "веб: http://localhost:$FARM_WEB_PORT" || log "веб: не отвечает"
+  local running
+  running=$(for m in "$FARM_ROOT"/runs/*.meta.json(N); do [[ -f "${m%.meta.json}.exit" ]] || basename "${m%.meta.json}"; done)
+  [[ -n "$running" ]] && log "идут: $(echo $running | tr '\n' ' ')" || log "запусков в работе нет"
+}
+
+cmd_doctor() {
+  for b in claude tmux node; do
+    command -v $b >/dev/null && log "$b: $(command -v $b)" || log "$b: НЕ НАЙДЕН"
+  done
+  claude plugin list 2>/dev/null | grep -q telegram && log "плагин telegram: установлен" \
+    || log "плагин telegram: не установлен → claude plugin install $TELEGRAM_PLUGIN"
+  [[ -f "$HOME/.claude/channels/telegram/.env" ]] && log "telegram token: задан" \
+    || log "telegram token: нет → в сессии /telegram:configure <token>"
+  if grep -q "\"$TELEGRAM_PLUGIN\"[[:space:]]*:[[:space:]]*true" "$HOME/.claude/settings.json" 2>/dev/null; then
+    log "ВНИМАНИЕ: плагин telegram включён глобально в ~/.claude/settings.json. Любая другая сессия claude на этом Маке отберёт поллер у фермы. Поставь там \"$TELEGRAM_PLUGIN\": false — ферма включает его сама через .claude/settings.json"
+  else
+    log "глобально плагин telegram выключен: ок"
+  fi
+  [[ -f "$FARM_ROOT/Projects/registry.md" ]] && log "реестр: $(grep -c '^| [a-z]' "$FARM_ROOT/Projects/registry.md") проект(ов)" || log "реестр: нет Projects/registry.md"
+  local row; row=$(registry_row lesson3-copy || true)
+  [[ -n "$row" ]] && { local r="${row%%$'\t'*}"; r="${r/#\~/$HOME}"; [[ "$r" == /* ]] || r="$FARM_ROOT/$r"; [[ -d "$r" ]] && log "lesson3-copy → $r: ок" || log "lesson3-copy → $r: папки нет"; }
+  [[ -f "$ENV_FILE" ]] && log "env: $ENV_FILE" || log "env: нет config/farm.env (не обязателен; пример в farm.env.example)"
+  [[ -e "$FARM_ROOT/.claude/skills/ops/SKILL.md" ]] && log "скилл ops: ок (.claude → claude)" || log "скилл ops: не виден, выполни farm link"
+  log "чат: $FARM_MODEL/$FARM_EFFORT · задачи: $FARM_TASK_MODEL/$FARM_TASK_EFFORT · веб: $FARM_WEB_PORT"
+}
+
+case "${1:-}" in
+  up) shift; cmd_up "$@" ;;
+  down) cmd_down ;;
+  restart) cmd_down; sleep 1; shift; cmd_up "$@" ;;
+  reset) tmux send-keys -t "$SESSION" Escape "/clear" Enter && log "контекст очищен (/clear)" ;;
+  status) cmd_status ;;
+  attach) tmux attach -t "$SESSION" ;;
+  logs) tail -n 100 -f "$FARM_ROOT/logs/${2:-claude}".{log,err}(N) ;;
+  doctor) cmd_doctor ;;
+  link) cmd_link; log ".claude → claude" ;;
+  run) shift; cmd_run "$@" ;;
+  web) exec env FARM_ROOT="$FARM_ROOT" FARM_WEB_PORT="$FARM_WEB_PORT" "$NODE_BIN" "$FARM_ROOT/web/server.mjs" ;;
+  *) sed -n '2,12p' "$0"; exit 1 ;;
+esac

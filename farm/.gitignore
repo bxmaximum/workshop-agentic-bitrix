@@ -1,0 +1,6 @@
+config/farm.env
+runs/*
+!runs/.gitkeep
+logs/*
+!logs/.gitkeep
+.DS_Store
