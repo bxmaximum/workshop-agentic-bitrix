@@ -270,13 +270,21 @@ PHP для всех прогонов: Omut php-8.4 (8.4.25) + `PHPRC=php-8.4-mys
 - Сброс кеша (`clearByTag`), затем `php ./vendor/bin/pest --filter='похожие|сайдбар детальной|популярные на детальной'` — **3 passed** (20 assertions), 0 failed.
 - Сброс кеша, затем полный e2e `cd e2e && php ./vendor/bin/pest` (php-8.4 + PHPRC в PATH) — **68 passed** (251 assertions), 0 failed, код выхода 0, 14.8 с. Контроль seed: «сайдбар: направления, популярные и сводка со SPAM (баг №2)» с «За неделю: 7 откликов на 6 вакансий» зелёный.
 - Падений нет, прогон на коммите шага 1 для сравнения не понадобился.
+- Коммит `0d4e857`.
+
+### Ревью, круг 1 — исправления
+
+- Находка №2 (nit): в `describe('getRelated: …')` добавлен тест с датасетом `limit=1` → `['middle-php-developer']`, `limit=0` → `[]` для senior-php-bitrix. Проверяет обрезку по `setLimit` и guard `$limit <= 0`.
+- `composer test:integration` — **12 passed + 1 warning**, 0 failed (warning прежний, `TAGS`).
+- Находка №1 (minor) не про код, передана docs-keeper оркестратором.
+- Коммит `test(vacancies): getRelated — обрезка по limit и limit=0`.
 
 ### Итог по сьютам
 
 | Сьют | База (после шага 1) | До правки (шаг 2) | После правки (шаги 3–4) |
 |------|---------------------|-------------------|--------------------------|
 | Unit | 9 passed | — | 9 passed |
-| Integration | 3 passed + 1 warning | 5 failed, 5 passed + 1 warning | 10 passed + 1 warning, 0 failed |
+| Integration | 3 passed + 1 warning | 5 failed, 5 passed + 1 warning | 10 passed + 1 warning, 0 failed; после ревью 12 passed + 1 warning |
 | Feature | 2 passed | — | 2 passed |
 | e2e (полный) | не запускался | — | 68 passed, 0 failed |
 

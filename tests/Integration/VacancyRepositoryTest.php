@@ -195,4 +195,11 @@ describe('getRelated: только свой раздел, без добора п
     test('без раздела похожих нет', function () use ($relatedCodes) {
         expect($relatedCodes('senior-php-bitrix', sectionId: 0))->toBe([]);
     });
+
+    test('limit обрезает выдачу, при limit <= 0 похожих нет', function (int $limit, array $expected) use ($relatedCodes) {
+        expect($relatedCodes('senior-php-bitrix', limit: $limit))->toBe($expected);
+    })->with([
+        'limit=1' => [1, ['middle-php-developer']],
+        'limit=0' => [0, []],
+    ]);
 });
