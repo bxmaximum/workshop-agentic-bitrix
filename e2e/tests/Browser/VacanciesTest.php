@@ -446,12 +446,23 @@ describe('Вакансии — детальная страница', function ()
             ->assertSeeIn('.lv-stats-week', '3 за неделю');
     });
 
-    test('похожие для Поддержки добираются из Разработки (баг №3)', function () {
+    test('похожие для Поддержки только из своего раздела', function () {
+        $related = '.lv-side > .lv-box:first-child';
+
         visit(site('/vacancies/?CODE=support-l1'))
-            ->assertSourceHas('Похожие вакансии')
-            ->assertSourceHas('?CODE=support-l2">Инженер поддержки (2-я линия, Битрикс)')
-            ->assertSourceHas('?CODE=support-lead">Руководитель поддержки')
-            ->assertSourceHas('?CODE=middle-php-developer">Middle PHP-разработчик');
+            ->assertSeeIn($related . ' h3', 'Похожие вакансии')
+            ->assertCount($related . ' li', 2)
+            ->assertSourceInHas($related, '?CODE=support-l2">Инженер поддержки (2-я линия, Битрикс)')
+            ->assertSourceInHas($related, '?CODE=support-lead">Руководитель поддержки')
+            ->assertSourceInMissing($related, '?CODE=middle-php-developer"');
+
+        // frontend-vue есть в «Популярных» этой страницы — поэтому проверка только внутри «Похожих»
+        visit(site('/vacancies/?CODE=support-l2'))
+            ->assertSeeIn($related . ' h3', 'Похожие вакансии')
+            ->assertCount($related . ' li', 2)
+            ->assertSourceInHas($related, '?CODE=support-l1">Специалист техподдержки (1-я линия)')
+            ->assertSourceInHas($related, '?CODE=support-lead">Руководитель поддержки')
+            ->assertSourceInMissing($related, '?CODE=frontend-vue"');
     });
 
     test('популярные на детальной исключают текущую', function () {

@@ -10,11 +10,11 @@
 
 ## 2. Критерии готовности
 
-- [ ] Репозиторий и сервис для support-l1 возвращают ровно `[support-l2, support-lead]`, для support-l2 — `[support-l1, support-lead]`, для support-lead — `[support-l1, support-l2]`.
-- [ ] Для senior-php-bitrix — ровно `[middle-php-developer, frontend-vue, devops-engineer]`. Для `sectionId = 0` репозиторий возвращает `[]`.
-- [ ] `/vacancies/?CODE=support-l1`: в блоке «Похожие вакансии» 2 ссылки (support-l2, support-lead), middle-php-developer в блоке нет. `/vacancies/?CODE=support-l2`: 2 ссылки, frontend-vue в блоке нет.
-- [ ] `composer test:integration` и `test:feature` находят тесты в `tests/Integration` и `tests/Feature`.
-- [ ] Новые и обновлённые тесты зелёные: Unit, Integration (в том числе новые `getRelated`), Feature, полный e2e после сброса кеша компонента.
+- [x] Репозиторий и сервис для support-l1 возвращают ровно `[support-l2, support-lead]`, для support-l2 — `[support-l1, support-lead]`, для support-lead — `[support-l1, support-l2]`.
+- [x] Для senior-php-bitrix — ровно `[middle-php-developer, frontend-vue, devops-engineer]`. Для `sectionId = 0` репозиторий возвращает `[]`.
+- [x] `/vacancies/?CODE=support-l1`: в блоке «Похожие вакансии» 2 ссылки (support-l2, support-lead), middle-php-developer в блоке нет. `/vacancies/?CODE=support-l2`: 2 ссылки, frontend-vue в блоке нет.
+- [x] `composer test:integration` и `test:feature` находят тесты в `tests/Integration` и `tests/Feature`.
+- [x] Новые и обновлённые тесты зелёные: Unit, Integration (в том числе новые `getRelated`), Feature, полный e2e после сброса кеша компонента.
 - [ ] Реестр багов и документация обновлены (docs-keeper).
 
 ## 3. Файлы
@@ -147,7 +147,7 @@
   `composer test:unit` и `composer test:integration` — всё зелёное: 11 Integration (4 старых, 3 случая из датасета, 2 в репозитории, 2 в сервисе). Сбросить кеш компонента (раздел 5), затем `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — 2 зелёных.
 - [x] **Коммит:** `fix(vacancies): похожие вакансии только из своего раздела`. В теле: убран добор по CITY_ID, параметр $cityId удалён; при нехватке соседей блок показывает сколько есть; добор по тегам сознательно не делали (см. 01-task.md). В коммит входят оба PHP-файла модуля и оба файла тестов.
 
-- [ ] **Шаг 4.** Обновить характеризующий e2e — `e2e/tests/Browser/VacanciesTest.php`, стр. 449–455. Название — без «(баг №N)», как при исправлении бага №1 в `bd0043a` («по просмотрам сортирует глобально до пагинации»). Проверки по всей странице (`assertSourceHas/Missing`) для отрицательных случаев не годятся: в «Популярных» на support-l2 есть frontend-vue, на support-lead — senior-php-bitrix. Поэтому все проверки ограничены блоком «Похожие». Это первый `div.lv-box` в `aside.lv-side` (`template.php`, стр. 131–144), якорь — его `h3`. В Pest Browser v5.0.1 (`e2e/vendor/pestphp/pest-plugin-browser`) для этого есть `assertSeeIn`, `assertDontSeeIn`, `assertCount`, `assertSourceInHas` и `assertSourceInMissing` (innerHTML элемента). Локатор работает в strict-режиме, селектор должен давать ровно один элемент — `.lv-side > .lv-box:first-child` даёт.
+- [x] **Шаг 4.** Обновить характеризующий e2e — `e2e/tests/Browser/VacanciesTest.php`, стр. 449–455. Название — без «(баг №N)», как при исправлении бага №1 в `bd0043a` («по просмотрам сортирует глобально до пагинации»). Проверки по всей странице (`assertSourceHas/Missing`) для отрицательных случаев не годятся: в «Популярных» на support-l2 есть frontend-vue, на support-lead — senior-php-bitrix. Поэтому все проверки ограничены блоком «Похожие». Это первый `div.lv-box` в `aside.lv-side` (`template.php`, стр. 131–144), якорь — его `h3`. В Pest Browser v5.0.1 (`e2e/vendor/pestphp/pest-plugin-browser`) для этого есть `assertSeeIn`, `assertDontSeeIn`, `assertCount`, `assertSourceInHas` и `assertSourceInMissing` (innerHTML элемента). Локатор работает в strict-режиме, селектор должен давать ровно один элемент — `.lv-side > .lv-box:first-child` даёт.
   ```php
   test('похожие для Поддержки только из своего раздела', function () {
       $related = '.lv-side > .lv-box:first-child';
@@ -170,7 +170,7 @@
   ```
   support-l2 добавлен сознательно: это случай, где проверка по всей странице дала бы ложное падение, так что проверка внутри блока здесь действительно нужна. support-lead покрыт Integration-тестами, третий визит в e2e избыточен. Соседние тесты остаются без изменений (проверено): «популярные на детальной исключают текущую» (стр. 457–465) и «сайдбар детальной без «Направления» и «Сводка» (баг №16)» (стр. 467–473). У senior-php-bitrix после правки по-прежнему 3 «Похожих», блок есть. Лишние просмотры от визитов (баг №13) порядок «Популярных» не меняют: разрывы 120 → 70 → 41.
   Прогон: сбросить кеш, затем полный e2e (раздел 5). Для точечной проверки: `php ./vendor/bin/pest --filter='похожие|сайдбар детальной|популярные на детальной'`.
-- [ ] **Коммит:** `test(vacancies): e2e похожих — только вакансии своего раздела`.
+- [x] **Коммит:** `test(vacancies): e2e похожих — только вакансии своего раздела`.
 
 - [ ] **Шаг 5.** docs-keeper по разделу 7. Отдельный коммит `docs(vacancies): …` делает он, не implementer.
 
@@ -262,3 +262,22 @@ PHP для всех прогонов: Omut php-8.4 (8.4.25) + `PHPRC=php-8.4-mys
 - Сброс кеша компонента, затем `SITE_URL=http://lesson3-copy.bitrix:8765 composer test:feature` — **2 passed**, 0 failed. Ручная проверка `curl …/vacancies/?CODE=support-l1`: в «Похожих» support-l2 и support-lead, 2 карточки.
 - **Отклонение 1 (счёт тестов).** В плане ожидалось «11 Integration (4 старых, 3 случая из датасета, 2 в репозитории, 2 в сервисе)», по факту 4 + 3 + 2 + 2 = 11 тестов, из них 10 passed + 1 passed-with-warning. Pest считает warning отдельно от passed, отсюда «10 passed, 1 warning». Ничего не упало.
 - **Отклонение 2 (сброс кеша).** `rm -rf www/bitrix/cache/s1/legacy/vacancies` в этой сессии не разрешён системой прав (неинтерактивный режим). Кеш сбрасывал штатным способом из раздела 5: `Application::getInstance()->getTaggedCache()->clearByTag('ws_vacancies')` через `php -r` с ядром (bootstrap как в `seed.php`). Файловый кеш Bitrix при этом не удаляет файлы сразу, а переименовывает каталог (`cd2` → `cd2.~NNNNNN`) под отложенное удаление агентом `cacheCleanJob`: по старому пути кеш больше не читается, эффект тот же. Побочный эффект — запись в `b_cache_tag`, безвредно.
+- Коммит `74e3f2e`.
+
+### Шаг 4 — e2e
+
+- Тест переименован в `похожие для Поддержки только из своего раздела` и переписан по плану: проверки ограничены блоком `.lv-side > .lv-box:first-child`, support-l1 и support-l2. Селектор в strict-режиме сработал, запасные варианты не понадобились.
+- Сброс кеша (`clearByTag`), затем `php ./vendor/bin/pest --filter='похожие|сайдбар детальной|популярные на детальной'` — **3 passed** (20 assertions), 0 failed.
+- Сброс кеша, затем полный e2e `cd e2e && php ./vendor/bin/pest` (php-8.4 + PHPRC в PATH) — **68 passed** (251 assertions), 0 failed, код выхода 0, 14.8 с. Контроль seed: «сайдбар: направления, популярные и сводка со SPAM (баг №2)» с «За неделю: 7 откликов на 6 вакансий» зелёный.
+- Падений нет, прогон на коммите шага 1 для сравнения не понадобился.
+
+### Итог по сьютам
+
+| Сьют | База (после шага 1) | До правки (шаг 2) | После правки (шаги 3–4) |
+|------|---------------------|-------------------|--------------------------|
+| Unit | 9 passed | — | 9 passed |
+| Integration | 3 passed + 1 warning | 5 failed, 5 passed + 1 warning | 10 passed + 1 warning, 0 failed |
+| Feature | 2 passed | — | 2 passed |
+| e2e (полный) | не запускался | — | 68 passed, 0 failed |
+
+Warning в Integration на всех прогонах один и тот же (`TAGS` в `compileEntity`), он был до задачи и к ней не относится.
