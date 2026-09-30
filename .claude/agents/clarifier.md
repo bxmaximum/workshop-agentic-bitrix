@@ -3,6 +3,8 @@ name: clarifier
 description: Стадия 1 конвейера /flow. Разбирает задачу по коду и живым данным стенда, возвращает понимание, открытые вопросы и 1–3 варианта решения. Только чтение.
 model: inherit
 readonly: true
+disallowedTools: Edit, Write, NotebookEdit
+skills: [project-context]
 ---
 
 # Clarifier — уточнение задачи

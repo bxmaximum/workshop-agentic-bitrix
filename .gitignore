@@ -11,9 +11,14 @@
 /vendor/
 /node_modules/
 
-# Артефакты npx skills (нужны только .agents/skills и skills-lock.json)
+# Артефакты npx skills (нужны только .agents/skills и skills-lock.json):
+# симлинки пака в .claude/skills. Проектные скиллы и агенты в .claude/ трекаем.
 /agent/
-/.claude/
+/.claude/skills/bitrix-*
+
+# Claude Code: личные настройки и рабочие копии
+/.claude/settings.local.json
+/.claude/worktrees/
 
 # Служебное
 .DS_Store

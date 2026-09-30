@@ -4,7 +4,7 @@
 declare(strict_types=1);
 
 /**
- * MCP-сервер стенда. Cursor запускает его подпроцессом (.cursor/mcp.json) и говорит с ним JSON-RPC через stdin/stdout.
+ * MCP-сервер стенда. Cursor и Claude Code запускают его подпроцессом (.cursor/mcp.json, .mcp.json) и говорит с ним JSON-RPC через stdin/stdout.
  *
  * STDOUT занят протоколом: любой echo или warning в него ломает обмен.
  * Поэтому ошибки PHP идут в STDERR, а вывод ядра при загрузке перехватывает Kernel::boot().

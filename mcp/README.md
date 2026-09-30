@@ -34,7 +34,7 @@ mcp/
 cd mcp && composer install
 ```
 
-Подключение — `.cursor/mcp.json` в корне репозитория. Путь к PHP и `PHPRC` те же, что для Integration-тестов (см. `AGENTS.md`): без ini Omut PHP не видит сокет MySQL.
+Подключение — `.cursor/mcp.json` (Cursor) и `.mcp.json` (Claude Code, в том числе вложенный агент фермы) в корне репозитория. Путь к PHP и `PHPRC` те же, что для Integration-тестов (см. `AGENTS.md`): без ini Omut PHP не видит сокет MySQL.
 
 После правок кода сервера — выключить и включить `bitrix-stand` в Cursor → Customize → MCP. Процесс долгоживущий: опции модулей ядро кеширует в памяти процесса, после смены настроек в админке сервер тоже нужно перезапустить.
 

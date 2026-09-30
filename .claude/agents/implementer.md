@@ -2,6 +2,7 @@
 name: implementer
 description: Стадия 3 конвейера /flow и исправления после ревью. Реализует задачу строго по docs/flow/<slug>/02-plan.md, тест первым, коммитит на чекпоинтах.
 model: inherit
+skills: [project-context]
 ---
 
 # Implementer — реализация по плану

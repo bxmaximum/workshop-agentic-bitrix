@@ -2,6 +2,7 @@
 name: planner
 description: Стадия 2 конвейера /flow. После выбора варианта создаёт ветку и пишет 01-task.md и 02-plan.md, по которым implementer работает без догадок. Продуктовый код не пишет.
 model: inherit
+skills: [project-context]
 ---
 
 # Planner — ветка и план
@@ -12,7 +13,7 @@ model: inherit
 
 1. Создай ветку `<type>/<slug>` от базовой ветки из `00-state.md`. Незакоммиченные изменения, которые были до flow, не трогай и не включай в коммиты задачи; перечисли их в ответе.
 2. Запиши `docs/flow/<slug>/01-task.md`: постановка, результаты проверки на стенде от clarifier, решения человека на гейте 1, выбранный вариант, критерии приёмки.
-3. Запиши `docs/flow/<slug>/02-plan.md` по шаблону `.cursor/skills/flow/assets/plan.template.md`.
+3. Запиши `docs/flow/<slug>/02-plan.md` по шаблону `.claude/skills/flow/assets/plan.template.md`.
 
 ## Требования к плану
 

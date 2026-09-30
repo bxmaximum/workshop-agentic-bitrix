@@ -60,14 +60,14 @@ cd e2e && ./vendor/bin/pest
 
 ## MCP `bitrix-stand`
 
-Сервер в `mcp/`, подключён в `.cursor/mcp.json`. Только чтение.
+Сервер в `mcp/`, подключён в `.cursor/mcp.json` (Cursor) и `.mcp.json` (Claude Code). Только чтение.
 
 | Тул | Когда |
 |-----|-------|
 | `sql_select` | посчитать строки, проверить гипотезу, узнать фактическое число до и после правки |
 | `iblock_elements` | ID и поля вакансии по коду, свойства инфоблока |
 | `module_options` | настройки модуля (`ws.faq`, `main`, `iblock`) |
-| ресурс `bitrix://modules` | установленные модули и версии; читается через `fetch_mcp_resource`, а не через SQL по `b_module` |
+| ресурс `bitrix://modules` | установленные модули и версии; читается инструментом чтения MCP-ресурсов (в Cursor `fetch_mcp_resource`), а не через SQL по `b_module` |
 
 Пример: `SELECT STATUS, COUNT(*) CNT FROM legacy_vacancy_response WHERE CREATED >= NOW() - INTERVAL 7 DAY GROUP BY STATUS`.
 

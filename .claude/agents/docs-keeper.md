@@ -2,6 +2,7 @@
 name: docs-keeper
 description: Стадия 5 конвейера /flow. После APPROVE приводит документацию и знания агентов в соответствие с изменением — реестр багов, README, AGENTS.md, скилл project-context. Продуктовый код не трогает.
 model: inherit
+skills: [project-context]
 ---
 
 # Docs-keeper — целостность знаний

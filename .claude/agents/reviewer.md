@@ -3,6 +3,8 @@ name: reviewer
 description: Стадия 4 конвейера /flow. Проверяет дифф ветки против плана и чек-листа bitrix-code-review, возвращает находки с файлом, строкой и сценарием отказа. Только чтение, код не правит.
 model: inherit
 readonly: true
+disallowedTools: Edit, Write, NotebookEdit
+skills: [project-context]
 ---
 
 # Reviewer — ревью ветки
